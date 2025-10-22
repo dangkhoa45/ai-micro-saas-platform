@@ -5,6 +5,9 @@ import OpenAI from "openai";
  */
 export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
+  // Add a small amount of built-in resiliency to transient 429s/timeouts
+  maxRetries: 3,
+  timeout: 60_000,
 });
 
 /**
@@ -47,9 +50,9 @@ export async function generateText(
   }
 ) {
   const {
-    model = AI_MODELS.GPT4O,
+    model = (process.env.AI_DEFAULT_MODEL as string) || AI_MODELS.GPT4O,
     temperature = 0.7,
-    maxTokens = 2000,
+    maxTokens = Number(process.env.AI_MAX_TOKENS || 2000),
     systemPrompt,
   } = options || {};
 
@@ -67,12 +70,52 @@ export async function generateText(
     content: prompt,
   });
 
-  const response = await openai.chat.completions.create({
-    model,
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-  });
+  // Dev-friendly mock mode to allow UI testing without OpenAI quota
+  if (process.env.AI_MOCK === "1") {
+    const mockContent = `"${prompt}"\n\nHere is a concise, friendly piece generated in mock mode for development/testing.\n- Tone: ${
+      options?.systemPrompt?.match(/tone\./i) ? "configured" : "default"
+    }\n- Length hint: ${
+      options?.maxTokens
+    }\n\nKey points:\n1) This content is produced locally without calling OpenAI.\n2) Use it to validate UI flows and costs display.\n3) Disable by removing AI_MOCK=1 from .env.`;
+
+    const tokens = Math.min(
+      Math.ceil(mockContent.split(/\s+/).length * 1.3),
+      maxTokens
+    );
+    return {
+      text: mockContent,
+      usage: {
+        promptTokens: Math.ceil(prompt.split(/\s+/).length * 1.3),
+        completionTokens: tokens,
+        totalTokens: tokens,
+      },
+      model: "mock",
+    };
+  }
+
+  // Basic exponential backoff for transient rate limits beyond SDK retries
+  const attemptRequest = async (
+    attempt = 0
+  ): Promise<OpenAI.Chat.Completions.ChatCompletion> => {
+    try {
+      return await openai.chat.completions.create({
+        model,
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+      });
+    } catch (err: any) {
+      // Only retry on 429 rate limits
+      if (err?.status === 429 && attempt < 2) {
+        const delay = 500 * Math.pow(2, attempt); // 500ms, 1s
+        await new Promise((r) => setTimeout(r, delay));
+        return attemptRequest(attempt + 1);
+      }
+      throw err;
+    }
+  };
+
+  const response = await attemptRequest();
 
   const text = response.choices[0]?.message?.content || "";
   const usage = response.usage;
@@ -121,9 +164,9 @@ export async function* streamText(
   }
 ) {
   const {
-    model = AI_MODELS.GPT4O,
+    model = (process.env.AI_DEFAULT_MODEL as string) || AI_MODELS.GPT4O,
     temperature = 0.7,
-    maxTokens = 2000,
+    maxTokens = Number(process.env.AI_MAX_TOKENS || 2000),
     systemPrompt,
   } = options || {};
 
@@ -140,6 +183,20 @@ export async function* streamText(
     role: "user",
     content: prompt,
   });
+
+  if (process.env.AI_MOCK === "1") {
+    const chunks = [
+      "This is a ",
+      "streamed response ",
+      "from mock mode. ",
+      "Use it to verify UI behavior.",
+    ];
+    for (const c of chunks) {
+      yield c;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return;
+  }
 
   const stream = await openai.chat.completions.create({
     model,
