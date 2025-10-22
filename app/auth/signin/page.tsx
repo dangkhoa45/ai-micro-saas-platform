@@ -145,6 +145,18 @@ export default function SignInPage() {
                 </button>
               ))}
         </div>
+
+        <div className="text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Don&apos;t have an account?{" "}
+            <a
+              href="/auth/signup"
+              className="text-primary font-medium hover:underline"
+            >
+              Sign up
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );
