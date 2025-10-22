@@ -1,17 +1,38 @@
-import OpenAI from "openai";
-
 /**
- * OpenAI client configuration
+ * AI Model Integration
+ * Unified AI client with OpenRouter + Multi-Provider support
  */
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
-  // Add a small amount of built-in resiliency to transient 429s/timeouts
-  maxRetries: 3,
-  timeout: 60_000,
-});
+
+import OpenAI from "openai";
+import type {
+  AIProvider,
+  AIGenerateOptions,
+  AIGenerateResponse,
+  AIModelConfig,
+  AIUseCase,
+} from "@/lib/types/ai.types";
+import {
+  AIError,
+  AIRateLimitError,
+  AIQuotaError,
+  AIAuthError,
+} from "@/lib/types/ai.types";
+import {
+  AIConfig,
+  getModelConfig,
+  getModelByUseCase,
+  getFallbackModel,
+  calculateCost as calculateModelCost,
+  ModelRegistry,
+} from "@/config/ai.config";
+import {
+  buildChatMessages,
+  parseAIError,
+  retryWithBackoff,
+} from "@/lib/utils/ai-utils";
 
 /**
- * Available AI models
+ * Legacy exports for backward compatibility
  */
 export const AI_MODELS = {
   GPT4O: "gpt-4o",
@@ -20,170 +41,330 @@ export const AI_MODELS = {
 } as const;
 
 /**
- * Token pricing (per 1K tokens)
+ * AI Client Class
+ * Handles model selection, request creation, and provider fallback
  */
-export const TOKEN_PRICING = {
-  [AI_MODELS.GPT4O]: {
-    input: 0.005,
-    output: 0.015,
-  },
-  [AI_MODELS.GPT4_TURBO]: {
-    input: 0.01,
-    output: 0.03,
-  },
-  [AI_MODELS.GPT35_TURBO]: {
-    input: 0.0005,
-    output: 0.0015,
-  },
-} as const;
+export class AIClient {
+  public readonly client: OpenAI;
+  private config: AIModelConfig;
+  private modelId: string;
 
-/**
- * Generate text using OpenAI
- */
-export async function generateText(
-  prompt: string,
-  options?: {
-    model?: string;
-    temperature?: number;
-    maxTokens?: number;
-    systemPrompt?: string;
-  }
-) {
-  const {
-    model = (process.env.AI_DEFAULT_MODEL as string) || AI_MODELS.GPT4O,
-    temperature = 0.7,
-    maxTokens = Number(process.env.AI_MAX_TOKENS || 2000),
-    systemPrompt,
-  } = options || {};
+  constructor(modelId?: string, useCase?: AIUseCase) {
+    // Determine model ID
+    if (modelId) {
+      this.modelId = modelId;
+    } else if (useCase) {
+      this.modelId = getModelByUseCase(useCase);
+    } else {
+      this.modelId = AIConfig.defaultModel;
+    }
 
-  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+    // Get model configuration
+    this.config = getModelConfig(this.modelId);
 
-  if (systemPrompt) {
-    messages.push({
-      role: "system",
-      content: systemPrompt,
+    // Initialize OpenAI client with the appropriate configuration
+    this.client = new OpenAI({
+      apiKey: this.config.apiKey,
+      baseURL: this.config.baseURL,
+      defaultHeaders: this.config.headers,
+      maxRetries: AIConfig.defaults.maxRetries,
+      timeout: AIConfig.defaults.timeout,
     });
   }
 
-  messages.push({
-    role: "user",
-    content: prompt,
-  });
+  /**
+   * Generate text completion
+   */
+  async generate(
+    prompt: string,
+    options: Omit<AIGenerateOptions, "stream"> = {}
+  ): Promise<AIGenerateResponse> {
+    const {
+      temperature = AIConfig.defaults.temperature,
+      maxTokens = AIConfig.defaults.maxTokens,
+      systemPrompt,
+    } = options;
 
-  // Dev-friendly mock mode to allow UI testing without OpenAI quota
+    // Build messages
+    const messages = buildChatMessages({
+      systemPrompt,
+      userMessage: prompt,
+    });
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.modelId,
+        messages: messages as any,
+        temperature,
+        max_tokens: maxTokens,
+      });
+
+      const text = response.choices[0]?.message?.content || "";
+      const usage = response.usage;
+
+      return {
+        text,
+        usage: {
+          promptTokens: usage?.prompt_tokens || 0,
+          completionTokens: usage?.completion_tokens || 0,
+          totalTokens: usage?.total_tokens || 0,
+        },
+        model: response.model,
+        provider: this.config.provider,
+      };
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Generate streaming completion
+   */
+  async *generateStream(
+    prompt: string,
+    options: Omit<AIGenerateOptions, "stream"> = {}
+  ): AsyncGenerator<string, void, unknown> {
+    const {
+      temperature = AIConfig.defaults.temperature,
+      maxTokens = AIConfig.defaults.maxTokens,
+      systemPrompt,
+    } = options;
+
+    const messages = buildChatMessages({
+      systemPrompt,
+      userMessage: prompt,
+    });
+
+    try {
+      const stream = await this.client.chat.completions.create({
+        model: this.modelId,
+        messages: messages as any,
+        temperature,
+        max_tokens: maxTokens,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          yield content;
+        }
+      }
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Handle and classify errors
+   */
+  private handleError(error: any): AIError {
+    const parsedError = parseAIError(error);
+
+    if (parsedError.isRateLimit) {
+      return new AIRateLimitError(this.config.provider);
+    }
+
+    if (parsedError.isQuotaError) {
+      return new AIQuotaError(this.config.provider);
+    }
+
+    if (parsedError.isAuthError) {
+      return new AIAuthError(this.config.provider);
+    }
+
+    return new AIError(
+      parsedError.message,
+      this.config.provider,
+      parsedError.statusCode,
+      error
+    );
+  }
+}
+
+/**
+ * Generate text with automatic fallback
+ */
+export async function generateText(
+  prompt: string,
+  options?: AIGenerateOptions
+): Promise<AIGenerateResponse> {
+  const {
+    model,
+    useCase = "general",
+    temperature = 0.7,
+    maxTokens = 2000,
+    systemPrompt,
+  } = options || {};
+
+  // Mock mode for development
   if (process.env.AI_MOCK === "1") {
     const mockContent = `"${prompt}"\n\nHere is a concise, friendly piece generated in mock mode for development/testing.\n- Tone: ${
-      options?.systemPrompt?.match(/tone\./i) ? "configured" : "default"
-    }\n- Length hint: ${
-      options?.maxTokens
-    }\n\nKey points:\n1) This content is produced locally without calling OpenAI.\n2) Use it to validate UI flows and costs display.\n3) Disable by removing AI_MOCK=1 from .env.`;
+      systemPrompt?.match(/tone\./i) ? "configured" : "default"
+    }\n- Length hint: ${maxTokens}\n\nKey points:\n1) This content is produced locally without calling AI APIs.\n2) Use it to validate UI flows and costs display.\n3) Disable by removing AI_MOCK=1 from .env.`;
 
     const tokens = Math.min(
       Math.ceil(mockContent.split(/\s+/).length * 1.3),
       maxTokens
     );
+    
     return {
       text: mockContent,
       usage: {
         promptTokens: Math.ceil(prompt.split(/\s+/).length * 1.3),
         completionTokens: tokens,
-        totalTokens: tokens,
+        totalTokens: tokens + Math.ceil(prompt.split(/\s+/).length * 1.3),
       },
       model: "mock",
+      provider: "OpenAI",
     };
   }
 
-  // Basic exponential backoff for transient rate limits beyond SDK retries
-  const attemptRequest = async (
-    attempt = 0
-  ): Promise<OpenAI.Chat.Completions.ChatCompletion> => {
+  const primaryModelId = model || getModelByUseCase(useCase);
+  
+  try {
+    // Try primary model (OpenRouter)
+    const client = new AIClient(primaryModelId);
+    return await retryWithBackoff(() =>
+      client.generate(prompt, { temperature, maxTokens, systemPrompt })
+    );
+  } catch (primaryError: any) {
+    console.warn(
+      `[AI] Primary model failed (${primaryModelId}):`,
+      primaryError.message
+    );
+
+    // Try fallback model (OpenAI direct)
+    const fallbackModelId = getFallbackModel(useCase);
+    
+    if (!fallbackModelId) {
+      throw primaryError;
+    }
+
     try {
-      return await openai.chat.completions.create({
-        model,
-        messages,
+      console.log(`[AI] Attempting fallback to ${fallbackModelId}`);
+      const fallbackClient = new AIClient(fallbackModelId);
+      return await fallbackClient.generate(prompt, {
+        temperature,
+        maxTokens,
+        systemPrompt,
+      });
+    } catch (fallbackError: any) {
+      console.error(
+        `[AI] Fallback model also failed (${fallbackModelId}):`,
+        fallbackError.message
+      );
+      // Throw the original error
+      throw primaryError;
+    }
+  }
+}
+
+/**
+ * Generate chat completion
+ */
+export async function generateChat(
+  messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
+  options?: AIGenerateOptions
+): Promise<AIGenerateResponse> {
+  const userMessage = messages[messages.length - 1]?.content || "";
+  const systemPrompt = messages.find((m) => m.role === "system")?.content;
+  const conversationHistory = messages
+    .filter((m) => m.role !== "system")
+    .slice(0, -1) as Array<{ role: "user" | "assistant"; content: string }>;
+
+  const {
+    model,
+    useCase = "chat",
+    temperature = 0.7,
+    maxTokens = 2000,
+  } = options || {};
+
+  const primaryModelId = model || getModelByUseCase(useCase);
+
+  try {
+    const client = new AIClient(primaryModelId);
+    const fullMessages = buildChatMessages({
+      systemPrompt,
+      userMessage,
+      conversationHistory,
+    });
+
+    const response = await retryWithBackoff(() =>
+      client.client.chat.completions.create({
+        model: primaryModelId,
+        messages: fullMessages as any,
+        temperature,
+        max_tokens: maxTokens,
+      })
+    );
+
+    const text = response.choices[0]?.message?.content || "";
+    const usage = response.usage;
+
+    return {
+      text,
+      usage: {
+        promptTokens: usage?.prompt_tokens || 0,
+        completionTokens: usage?.completion_tokens || 0,
+        totalTokens: usage?.total_tokens || 0,
+      },
+      model: response.model,
+      provider: ModelRegistry[primaryModelId]?.provider || "OpenAI",
+    };
+  } catch (error: any) {
+    // Fallback logic
+    const fallbackModelId = getFallbackModel(useCase);
+    if (fallbackModelId) {
+      const fallbackClient = new AIClient(fallbackModelId);
+      const fullMessages = buildChatMessages({
+        systemPrompt,
+        userMessage,
+        conversationHistory,
+      });
+
+      const response = await fallbackClient.client.chat.completions.create({
+        model: fallbackModelId,
+        messages: fullMessages as any,
         temperature,
         max_tokens: maxTokens,
       });
-    } catch (err: any) {
-      // Only retry on 429 rate limits
-      if (err?.status === 429 && attempt < 2) {
-        const delay = 500 * Math.pow(2, attempt); // 500ms, 1s
-        await new Promise((r) => setTimeout(r, delay));
-        return attemptRequest(attempt + 1);
-      }
-      throw err;
+
+      const text = response.choices[0]?.message?.content || "";
+      const usage = response.usage;
+
+      return {
+        text,
+        usage: {
+          promptTokens: usage?.prompt_tokens || 0,
+          completionTokens: usage?.completion_tokens || 0,
+          totalTokens: usage?.total_tokens || 0,
+        },
+        model: response.model,
+        provider: "OpenAI",
+      };
     }
-  };
 
-  const response = await attemptRequest();
-
-  const text = response.choices[0]?.message?.content || "";
-  const usage = response.usage;
-
-  return {
-    text,
-    usage: {
-      promptTokens: usage?.prompt_tokens || 0,
-      completionTokens: usage?.completion_tokens || 0,
-      totalTokens: usage?.total_tokens || 0,
-    },
-    model: response.model,
-  };
-}
-
-/**
- * Calculate cost based on token usage
- */
-export function calculateCost(
-  model: string,
-  promptTokens: number,
-  completionTokens: number
-): number {
-  const pricing = TOKEN_PRICING[model as keyof typeof TOKEN_PRICING];
-
-  if (!pricing) {
-    return 0;
+    throw error;
   }
-
-  const promptCost = (promptTokens / 1000) * pricing.input;
-  const completionCost = (completionTokens / 1000) * pricing.output;
-
-  return promptCost + completionCost;
 }
 
 /**
- * Stream text generation
+ * Stream text generation with fallback
  */
 export async function* streamText(
   prompt: string,
-  options?: {
-    model?: string;
-    temperature?: number;
-    maxTokens?: number;
-    systemPrompt?: string;
-  }
-) {
+  options?: AIGenerateOptions
+): AsyncGenerator<string, void, unknown> {
   const {
-    model = (process.env.AI_DEFAULT_MODEL as string) || AI_MODELS.GPT4O,
+    model,
+    useCase = "general",
     temperature = 0.7,
-    maxTokens = Number(process.env.AI_MAX_TOKENS || 2000),
+    maxTokens = 2000,
     systemPrompt,
   } = options || {};
 
-  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
-
-  if (systemPrompt) {
-    messages.push({
-      role: "system",
-      content: systemPrompt,
-    });
-  }
-
-  messages.push({
-    role: "user",
-    content: prompt,
-  });
-
+  // Mock mode
   if (process.env.AI_MOCK === "1") {
     const chunks = [
       "This is a ",
@@ -198,20 +379,41 @@ export async function* streamText(
     return;
   }
 
-  const stream = await openai.chat.completions.create({
-    model,
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-    stream: true,
-  });
+  const primaryModelId = model || getModelByUseCase(useCase);
 
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content || "";
-    if (content) {
-      yield content;
+  try {
+    const client = new AIClient(primaryModelId);
+    yield* client.generateStream(prompt, {
+      temperature,
+      maxTokens,
+      systemPrompt,
+    });
+  } catch (error: any) {
+    console.warn(`[AI] Stream failed for ${primaryModelId}, trying fallback`);
+    
+    const fallbackModelId = getFallbackModel(useCase);
+    if (fallbackModelId) {
+      const fallbackClient = new AIClient(fallbackModelId);
+      yield* fallbackClient.generateStream(prompt, {
+        temperature,
+        maxTokens,
+        systemPrompt,
+      });
+    } else {
+      throw error;
     }
   }
+}
+
+/**
+ * Calculate cost based on token usage
+ */
+export function calculateCost(
+  model: string,
+  promptTokens: number,
+  completionTokens: number
+): number {
+  return calculateModelCost(model, promptTokens, completionTokens);
 }
 
 /**
@@ -233,7 +435,10 @@ export async function generateImage(
     n = 1,
   } = options || {};
 
-  const response = await openai.images.generate({
+  // Always use OpenAI for image generation
+  const client = new AIClient("dall-e-3");
+
+  const response = await client.client.images.generate({
     model,
     prompt,
     size,
@@ -248,7 +453,9 @@ export async function generateImage(
  * Create embeddings for text
  */
 export async function createEmbedding(text: string) {
-  const response = await openai.embeddings.create({
+  const client = new AIClient("gpt-4o"); // Use any OpenAI model config
+  
+  const response = await client.client.embeddings.create({
     model: "text-embedding-ada-002",
     input: text,
   });
@@ -258,3 +465,76 @@ export async function createEmbedding(text: string) {
     usage: response.usage,
   };
 }
+
+/**
+ * Analyze data with AI
+ */
+export async function analyzeData(
+  data: string,
+  question: string,
+  options?: AIGenerateOptions
+): Promise<AIGenerateResponse> {
+  const systemPrompt =
+    "You are a data analyst. Analyze the provided data and answer questions with clear, accurate insights.";
+  
+  const prompt = `Data:\n${data}\n\nQuestion: ${question}`;
+
+  return generateText(prompt, {
+    ...options,
+    useCase: "data",
+    systemPrompt,
+  });
+}
+
+/**
+ * Summarize text
+ */
+export async function summarize(
+  text: string,
+  options?: { length?: "short" | "medium" | "long" } & AIGenerateOptions
+): Promise<AIGenerateResponse> {
+  const { length = "medium", ...restOptions } = options || {};
+  
+  const lengthInstructions = {
+    short: "in 2-3 sentences",
+    medium: "in 1-2 paragraphs",
+    long: "in detail with key points",
+  };
+
+  const systemPrompt = `You are a summarization expert. Summarize the following text ${lengthInstructions[length]}.`;
+
+  return generateText(text, {
+    ...restOptions,
+    useCase: "text",
+    systemPrompt,
+    maxTokens: length === "short" ? 200 : length === "medium" ? 500 : 1000,
+  });
+}
+
+/**
+ * Create default AI client instance
+ * Lazily initialized to avoid errors at module load time
+ */
+let _defaultClient: AIClient | null = null;
+
+export function getDefaultAIClient(): AIClient {
+  if (!_defaultClient) {
+    _defaultClient = new AIClient();
+  }
+  return _defaultClient;
+}
+
+/**
+ * Export default AI client instance (lazy)
+ */
+export const ai = {
+  get client() {
+    return getDefaultAIClient();
+  },
+  generate: (prompt: string, options?: Omit<AIGenerateOptions, "stream">) => {
+    return getDefaultAIClient().generate(prompt, options);
+  },
+  generateStream: (prompt: string, options?: Omit<AIGenerateOptions, "stream">) => {
+    return getDefaultAIClient().generateStream(prompt, options);
+  },
+};
