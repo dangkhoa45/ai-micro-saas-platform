@@ -1,0 +1,26 @@
+{
+  "name": "ai-micro-saas-platform",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "prisma": "prisma generate"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "typescript": "latest",
+    "prisma": "latest",
+    "@prisma/client": "latest",
+    "next-auth": "latest",
+    "stripe": "latest",
+    "openai": "latest",
+    "zod": "latest",
+    "lucide-react": "latest",
+    "shadcn-ui": "latest",
+    "tailwindcss": "latest"
+  }
+}
