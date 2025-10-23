@@ -11,6 +11,7 @@ import bcrypt from "bcryptjs";
  * Supports credentials (email/password) and OAuth (Google, GitHub)
  */
 export const authOptions: NextAuthOptions = {
+  // Use adapter for OAuth providers
   adapter: PrismaAdapter(prisma) as any,
 
   providers: [
@@ -86,27 +87,22 @@ export const authOptions: NextAuthOptions = {
   ],
 
   session: {
-    strategy: "jwt",
+    strategy: "database",
   },
 
   pages: {
     signIn: "/auth/signin",
-    // optional custom pages below (only if implemented)
-    // signOut: "/auth/signout",
-    // error: "/auth/error",
+    error: "/auth/signin", // Redirect errors back to sign in page
   },
 
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
-    },
+  // Enable CSRF protection
+  useSecureCookies: process.env.NODE_ENV === "production",
 
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
+  callbacks: {
+    async session({ session, user }) {
+      // With database strategy, user comes from database
+      if (session.user && user) {
+        session.user.id = user.id;
       }
       return session;
     },
