@@ -72,10 +72,10 @@ Generate text with automatic model selection and fallback.
 ```typescript
 const result = await generateText("prompt", {
   useCase: "text" | "chat" | "code" | "data" | "general",
-  model?: "specific-model-id",
-  temperature?: 0.7,
-  maxTokens?: 2000,
-  systemPrompt?: "Custom system prompt",
+  model: "specific-model-id",
+  temperature: 0.7,
+  maxTokens: 2000,
+  systemPrompt: "Custom system prompt",
 });
 ```
 
@@ -148,7 +148,7 @@ Models are configured in `packages/config/ai.config.ts`:
 ```typescript
 export const AIConfig = {
   defaultModel: "mistralai/mixtral-8x7b-instruct",
-  
+
   models: {
     text: "mistralai/mixtral-8x7b-instruct",
     chat: "openai/gpt-4o-mini",
@@ -156,7 +156,7 @@ export const AIConfig = {
     code: "openai/gpt-4o",
     general: "mistralai/mixtral-8x7b-instruct",
   },
-  
+
   fallbackModels: {
     text: "gpt-4o-mini",
     chat: "gpt-4o-mini",
@@ -171,23 +171,23 @@ export const AIConfig = {
 
 ### OpenRouter Models
 
-| Model ID | Description | Best For |
-|----------|-------------|----------|
-| `mistralai/mixtral-8x7b-instruct` | Fast open-source model | General tasks, text generation |
-| `anthropic/claude-3-5-sonnet` | Claude's best model | Analysis, reasoning, complex tasks |
-| `openai/gpt-4o` | GPT-4 Omni | Code, multimodal, advanced tasks |
-| `openai/gpt-4o-mini` | Cost-effective GPT-4 | Chat, everyday tasks |
-| `google/gemini-pro-1.5` | Large context window | Long documents, extensive context |
-| `meta-llama/llama-3.1-70b-instruct` | Open-source Llama | Code, general tasks |
+| Model ID                            | Description            | Best For                           |
+| ----------------------------------- | ---------------------- | ---------------------------------- |
+| `mistralai/mixtral-8x7b-instruct`   | Fast open-source model | General tasks, text generation     |
+| `anthropic/claude-3-5-sonnet`       | Claude's best model    | Analysis, reasoning, complex tasks |
+| `openai/gpt-4o`                     | GPT-4 Omni             | Code, multimodal, advanced tasks   |
+| `openai/gpt-4o-mini`                | Cost-effective GPT-4   | Chat, everyday tasks               |
+| `google/gemini-pro-1.5`             | Large context window   | Long documents, extensive context  |
+| `meta-llama/llama-3.1-70b-instruct` | Open-source Llama      | Code, general tasks                |
 
 ### OpenAI Direct Models (Fallback)
 
-| Model ID | Description |
-|----------|-------------|
-| `gpt-4o` | Latest GPT-4 |
-| `gpt-4o-mini` | Fast and affordable |
+| Model ID              | Description         |
+| --------------------- | ------------------- |
+| `gpt-4o`              | Latest GPT-4        |
+| `gpt-4o-mini`         | Fast and affordable |
 | `gpt-4-turbo-preview` | Previous generation |
-| `gpt-3.5-turbo` | Legacy model |
+| `gpt-3.5-turbo`       | Legacy model        |
 
 ## Use Cases
 
@@ -204,7 +204,12 @@ The system automatically selects the best model for each use case:
 The module provides custom error classes:
 
 ```typescript
-import { AIError, AIRateLimitError, AIQuotaError, AIAuthError } from "@/lib/types/ai.types";
+import {
+  AIError,
+  AIRateLimitError,
+  AIQuotaError,
+  AIAuthError,
+} from "@/lib/types/ai.types";
 
 try {
   const result = await generateText("prompt");
@@ -270,7 +275,7 @@ Or in code:
 
 ```typescript
 // Set in .env
-AI_MOCK=1
+AI_MOCK = 1;
 
 // Calls to generateText() will return mock responses
 const result = await generateText("test");
@@ -281,7 +286,10 @@ const result = await generateText("test");
 ### Build System Prompts
 
 ```typescript
-import { buildSystemPrompt, buildContentSystemPrompt } from "@/lib/utils/ai-utils";
+import {
+  buildSystemPrompt,
+  buildContentSystemPrompt,
+} from "@/lib/utils/ai-utils";
 
 const systemPrompt = buildSystemPrompt({
   useCase: "text",
@@ -311,15 +319,12 @@ const truncated = truncateToTokens(longText, 1000);
 ```typescript
 import { retryWithBackoff } from "@/lib/utils/ai-utils";
 
-const result = await retryWithBackoff(
-  () => someAPICall(),
-  {
-    maxRetries: 3,
-    initialDelay: 500,
-    maxDelay: 10000,
-    shouldRetry: (error) => error.status === 429,
-  }
-);
+const result = await retryWithBackoff(() => someAPICall(), {
+  maxRetries: 3,
+  initialDelay: 500,
+  maxDelay: 10000,
+  shouldRetry: (error) => error.status === 429,
+});
 ```
 
 ## Best Practices
@@ -358,11 +363,13 @@ The new system maintains backward compatibility with the old `generateText()` si
 ### "API key not configured"
 
 Ensure at least one provider is configured:
+
 - `OPENROUTER_API_KEY` or `OPENAI_API_KEY`
 
 ### "Rate limit exceeded"
 
 The system includes automatic retry with backoff. If it persists:
+
 - Check your API quotas
 - Reduce request frequency
 - Upgrade your plan
@@ -386,6 +393,7 @@ export const ModelRegistry: Record<string, ModelRegistryEntry> = {
 ## Support
 
 For issues or questions:
+
 1. Check this documentation
 2. Review `scripts/test-ai.ts` for examples
 3. Check TypeScript types in `lib/types/ai.types.ts`

@@ -3,6 +3,7 @@
 ## 🚀 Common Usage Patterns
 
 ### Text Generation
+
 ```typescript
 import { generateText } from "@/lib/ai";
 
@@ -13,6 +14,7 @@ const result = await generateText("Write a blog post about TypeScript", {
 ```
 
 ### Chat
+
 ```typescript
 import { generateChat } from "@/lib/ai";
 
@@ -23,6 +25,7 @@ const result = await generateChat([
 ```
 
 ### Streaming
+
 ```typescript
 import { streamText } from "@/lib/ai";
 
@@ -32,6 +35,7 @@ for await (const chunk of streamText("Tell a story")) {
 ```
 
 ### Specific Model
+
 ```typescript
 import { AIClient } from "@/lib/ai";
 
@@ -41,13 +45,13 @@ const result = await client.generate("Complex analysis task");
 
 ## 📊 Model Selection by Use Case
 
-| Use Case | Default Model | Best For |
-|----------|---------------|----------|
-| `text` | Mixtral 8x7B | Blog posts, articles, content |
-| `chat` | GPT-4o-mini | Conversations, Q&A |
-| `code` | GPT-4o | Programming, debugging |
-| `data` | Claude 3.5 | Analysis, insights |
-| `general` | Mixtral 8x7B | All-purpose |
+| Use Case  | Default Model | Best For                      |
+| --------- | ------------- | ----------------------------- |
+| `text`    | Mixtral 8x7B  | Blog posts, articles, content |
+| `chat`    | GPT-4o-mini   | Conversations, Q&A            |
+| `code`    | GPT-4o        | Programming, debugging        |
+| `data`    | Claude 3.5    | Analysis, insights            |
+| `general` | Mixtral 8x7B  | All-purpose                   |
 
 ## ⚙️ Environment Variables
 
@@ -66,11 +70,11 @@ AI_MAX_TOKENS=2000
 
 ```typescript
 interface AIGenerateOptions {
-  model?: string;              // Specific model ID
-  temperature?: number;        // 0-1 (default: 0.7)
-  maxTokens?: number;          // Max output (default: 2000)
-  systemPrompt?: string;       // Custom system message
-  useCase?: AIUseCase;         // Auto-select model
+  model?: string; // Specific model ID
+  temperature?: number; // 0-1 (default: 0.7)
+  maxTokens?: number; // Max output (default: 2000)
+  systemPrompt?: string; // Custom system message
+  useCase?: AIUseCase; // Auto-select model
 }
 ```
 
@@ -142,16 +146,16 @@ scripts/
 
 ## 🔑 Key Functions
 
-| Function | Purpose |
-|----------|---------|
-| `generateText()` | Basic text generation |
-| `generateChat()` | Multi-turn conversations |
-| `streamText()` | Streaming responses |
-| `analyzeData()` | Data analysis |
-| `summarize()` | Text summarization |
-| `generateImage()` | DALL-E images |
-| `createEmbedding()` | Vector embeddings |
-| `calculateCost()` | Token cost calculation |
+| Function            | Purpose                  |
+| ------------------- | ------------------------ |
+| `generateText()`    | Basic text generation    |
+| `generateChat()`    | Multi-turn conversations |
+| `streamText()`      | Streaming responses      |
+| `analyzeData()`     | Data analysis            |
+| `summarize()`       | Text summarization       |
+| `generateImage()`   | DALL-E images            |
+| `createEmbedding()` | Vector embeddings        |
+| `calculateCost()`   | Token cost calculation   |
 
 ## 🎨 Content Types
 
