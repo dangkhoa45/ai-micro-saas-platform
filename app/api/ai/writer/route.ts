@@ -11,13 +11,66 @@ import {
 import { z } from "zod";
 
 /**
- * AI Writer request schema
+ * AI Writer request schema - Enhanced with new parameters
  */
 const writerSchema = z.object({
   prompt: z.string().min(10, "Prompt must be at least 10 characters"),
-  type: z.enum(["blog", "article", "email", "social", "general"]).optional(),
-  tone: z.enum(["professional", "casual", "friendly", "formal"]).optional(),
+  type: z
+    .enum([
+      "blog",
+      "article",
+      "email",
+      "social",
+      "general",
+      "technical",
+      "creative",
+    ])
+    .optional(),
+  tone: z
+    .enum([
+      "professional",
+      "casual",
+      "friendly",
+      "formal",
+      "persuasive",
+      "technical",
+      "creative",
+      "humorous",
+    ])
+    .optional(),
+  style: z
+    .enum([
+      "standard",
+      "descriptive",
+      "narrative",
+      "expository",
+      "persuasive",
+      "conversational",
+    ])
+    .optional(),
   length: z.enum(["short", "medium", "long"]).optional(),
+  language: z
+    .enum([
+      "english",
+      "spanish",
+      "french",
+      "german",
+      "italian",
+      "portuguese",
+      "chinese",
+      "japanese",
+    ])
+    .optional(),
+  audience: z
+    .enum([
+      "general",
+      "expert",
+      "beginner",
+      "students",
+      "professionals",
+      "executives",
+    ])
+    .optional(),
   projectId: z.string().optional(),
 });
 
@@ -51,7 +104,10 @@ export async function POST(req: NextRequest) {
       prompt,
       type = "general",
       tone = "professional",
+      style = "standard",
       length = "medium",
+      language = "english",
+      audience = "general",
       projectId,
     } = validation.data;
 
@@ -69,13 +125,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build system prompt based on content type and tone
+    // Build system prompt based on content type, tone, style, language, and audience
     const systemPrompts: Record<string, string> = {
-      blog: `You are a professional blog writer. Write engaging, SEO-friendly blog content in a ${tone} tone.`,
-      article: `You are a skilled article writer. Create informative, well-researched articles in a ${tone} tone.`,
-      email: `You are an email copywriter. Write clear, effective emails in a ${tone} tone.`,
-      social: `You are a social media content creator. Write engaging social media posts in a ${tone} tone.`,
-      general: `You are a professional writer. Create high-quality content in a ${tone} tone.`,
+      blog: `You are a professional blog writer. Write engaging, SEO-friendly blog content`,
+      article: `You are a skilled article writer. Create informative, well-researched articles`,
+      email: `You are an email copywriter. Write clear, effective emails`,
+      social: `You are a social media content creator. Write engaging social media posts`,
+      technical: `You are a technical writer. Create clear, detailed technical documentation`,
+      creative: `You are a creative writer. Craft imaginative and engaging content`,
+      general: `You are a professional writer. Create high-quality content`,
+    };
+
+    const styleInstructions: Record<string, string> = {
+      standard: "using a clear and straightforward style",
+      descriptive: "using rich, descriptive language with vivid details",
+      narrative: "using a storytelling approach with narrative flow",
+      expository: "using an explanatory style that informs and educates",
+      persuasive: "using persuasive techniques to convince and motivate",
+      conversational: "using a natural, conversational style",
+    };
+
+    const audienceInstructions: Record<string, string> = {
+      general: "for a general audience",
+      expert: "for industry experts and professionals with deep knowledge",
+      beginner: "for beginners who are new to the topic",
+      students: "for students in an educational context",
+      professionals: "for working professionals in the field",
+      executives: "for business executives and decision-makers",
+    };
+
+    const languageInstructions: Record<string, string> = {
+      english: "in English",
+      spanish: "in Spanish",
+      french: "in French",
+      german: "in German",
+      italian: "in Italian",
+      portuguese: "in Portuguese",
+      chinese: "in Chinese",
+      japanese: "in Japanese",
     };
 
     const lengthInstructions: Record<string, string> = {
@@ -84,7 +171,7 @@ export async function POST(req: NextRequest) {
       long: "Create comprehensive content, around 800-1200 words.",
     };
 
-    const systemPrompt = `${systemPrompts[type]} ${lengthInstructions[length]}`;
+    const systemPrompt = `${systemPrompts[type]} in a ${tone} tone, ${styleInstructions[style]}, ${audienceInstructions[audience]}, ${languageInstructions[language]}. ${lengthInstructions[length]}`;
 
     // Optional: lightweight per-user throttle to avoid spamming OpenAI
     const fiveSecondsAgo = new Date(Date.now() - 5_000);
@@ -146,7 +233,10 @@ export async function POST(req: NextRequest) {
         metadata: {
           contentType: type,
           tone,
+          style,
           length,
+          language,
+          audience,
           promptLength: prompt.length,
         },
       },
