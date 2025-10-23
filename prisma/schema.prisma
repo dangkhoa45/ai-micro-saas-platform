@@ -51,11 +51,13 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   
-  accounts      Account[]
-  sessions      Session[]
-  subscriptions Subscription[]
-  projects      Project[]
-  usageLogs     UsageLog[]
+  accounts        Account[]
+  sessions        Session[]
+  subscriptions   Subscription[]
+  projects        Project[]
+  usageLogs       UsageLog[]
+  contentDrafts   ContentDraft[]
+  favoritePrompts FavoritePrompt[]
 }
 
 model VerificationToken {
@@ -139,4 +141,63 @@ model App {
 
   projects  Project[]
   usageLogs UsageLog[]
+}
+
+// Content Drafts for AI Writer
+model ContentDraft {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  content     String   @db.Text
+  sections    Json?    // Structured sections data
+  settings    Json?    // Generation settings (tone, length, etc.)
+  keywords    String?
+  metadata    Json?    // SEO data, readability scores, etc.
+  isFavorite  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions ContentVersion[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isFavorite])
+}
+
+// Content Versions for tracking changes
+model ContentVersion {
+  id        String   @id @default(cuid())
+  draftId   String
+  content   String   @db.Text
+  sections  Json?
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+
+  draft ContentDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([draftId])
+  @@index([createdAt])
+}
+
+// Favorite Prompts
+model FavoritePrompt {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  prompt      String   @db.Text
+  category    String?  // blog, email, social, etc.
+  tone        String?
+  length      String?
+  language    String?
+  tags        String[] // Array of tags
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([createdAt])
 }
