@@ -14,7 +14,12 @@ export function buildSystemPrompt(params: {
   length?: "short" | "medium" | "long";
   additionalContext?: string;
 }): string {
-  const { useCase, tone = "professional", length = "medium", additionalContext } = params;
+  const {
+    useCase,
+    tone = "professional",
+    length = "medium",
+    additionalContext,
+  } = params;
 
   const basePlrompts: Record<AIUseCase, string> = {
     text: `You are a professional writer creating high-quality content in a ${tone} tone.`,
@@ -27,7 +32,8 @@ export function buildSystemPrompt(params: {
 
   const lengthInstructions: Record<string, string> = {
     short: "Keep responses concise and to the point (150-250 words).",
-    medium: "Provide a well-balanced response with sufficient detail (400-600 words).",
+    medium:
+      "Provide a well-balanced response with sufficient detail (400-600 words).",
     long: "Create comprehensive, in-depth content with thorough explanations (800-1200 words).",
   };
 
@@ -85,14 +91,14 @@ export function estimateTokens(text: string): number {
  */
 export function truncateToTokens(text: string, maxTokens: number): string {
   const estimatedTokens = estimateTokens(text);
-  
+
   if (estimatedTokens <= maxTokens) {
     return text;
   }
 
   const words = text.split(/\s+/);
   const maxWords = Math.floor(maxTokens / 1.3);
-  
+
   return words.slice(0, maxWords).join(" ") + "...";
 }
 
@@ -121,7 +127,8 @@ export function parseAIError(error: any): {
     statusCode,
     isRateLimit: statusCode === 429 || /rate.?limit/i.test(errorMessage),
     isQuotaError: statusCode === 402 || /quota|billing/i.test(errorMessage),
-    isAuthError: statusCode === 401 || /unauthorized|invalid.*key/i.test(errorMessage),
+    isAuthError:
+      statusCode === 401 || /unauthorized|invalid.*key/i.test(errorMessage),
   };
 }
 
@@ -191,7 +198,10 @@ export function buildChatMessages(params: {
   userMessage: string;
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
 }): Array<{ role: "system" | "user" | "assistant"; content: string }> {
-  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
+  const messages: Array<{
+    role: "system" | "user" | "assistant";
+    content: string;
+  }> = [];
 
   if (params.systemPrompt) {
     messages.push({

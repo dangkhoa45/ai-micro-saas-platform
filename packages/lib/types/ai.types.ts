@@ -6,7 +6,12 @@
 /**
  * Supported AI providers
  */
-export type AIProvider = "OpenAI" | "OpenRouter" | "Anthropic" | "Gemini" | "Mistral";
+export type AIProvider =
+  | "OpenAI"
+  | "OpenRouter"
+  | "Anthropic"
+  | "Gemini"
+  | "Mistral";
 
 /**
  * Use case categories for model selection

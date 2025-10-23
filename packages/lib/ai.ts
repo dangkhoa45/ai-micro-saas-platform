@@ -22,6 +22,8 @@ import {
   getModelConfig,
   getModelByUseCase,
   getFallbackModel,
+  getAllFallbackModels,
+  getBestAvailableModel,
   calculateCost as calculateModelCost,
   ModelRegistry,
 } from "@/config/ai.config";
@@ -183,7 +185,8 @@ export class AIClient {
 }
 
 /**
- * Generate text with automatic fallback
+ * Generate text with automatic fallback to multiple models
+ * Smart fallback: tries multiple models in order until one succeeds
  */
 export async function generateText(
   prompt: string,
@@ -207,7 +210,7 @@ export async function generateText(
       Math.ceil(mockContent.split(/\s+/).length * 1.3),
       maxTokens
     );
-    
+
     return {
       text: mockContent,
       usage: {
@@ -220,44 +223,66 @@ export async function generateText(
     };
   }
 
-  const primaryModelId = model || getModelByUseCase(useCase);
-  
-  try {
-    // Try primary model (OpenRouter)
-    const client = new AIClient(primaryModelId);
-    return await retryWithBackoff(() =>
-      client.generate(prompt, { temperature, maxTokens, systemPrompt })
-    );
-  } catch (primaryError: any) {
-    console.warn(
-      `[AI] Primary model failed (${primaryModelId}):`,
-      primaryError.message
-    );
+  // Determine primary model
+  const primaryModelId = model || getBestAvailableModel(useCase);
+  const modelsToTry = [primaryModelId];
 
-    // Try fallback model (OpenAI direct)
-    const fallbackModelId = getFallbackModel(useCase);
-    
-    if (!fallbackModelId) {
-      throw primaryError;
-    }
+  // Add fallback models to the list
+  if (!model) {
+    // Only use fallbacks if user didn't specify a model
+    const fallbacks = getAllFallbackModels(useCase);
+    modelsToTry.push(...fallbacks);
+  }
+
+  const errors: Array<{ model: string; error: any }> = [];
+
+  // Try each model in sequence
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const modelId = modelsToTry[i];
+    const isPrimary = i === 0;
 
     try {
-      console.log(`[AI] Attempting fallback to ${fallbackModelId}`);
-      const fallbackClient = new AIClient(fallbackModelId);
-      return await fallbackClient.generate(prompt, {
-        temperature,
-        maxTokens,
-        systemPrompt,
-      });
-    } catch (fallbackError: any) {
-      console.error(
-        `[AI] Fallback model also failed (${fallbackModelId}):`,
-        fallbackError.message
+      if (!isPrimary) {
+        console.log(
+          `[AI] Trying fallback model ${i}/${
+            modelsToTry.length - 1
+          }: ${modelId}`
+        );
+      }
+
+      const client = new AIClient(modelId);
+      const result = await retryWithBackoff(() =>
+        client.generate(prompt, { temperature, maxTokens, systemPrompt })
       );
-      // Throw the original error
-      throw primaryError;
+
+      if (!isPrimary) {
+        console.log(`[AI] ✓ Success with fallback model: ${modelId}`);
+      }
+
+      return result;
+    } catch (error: any) {
+      errors.push({ model: modelId, error });
+
+      if (isPrimary) {
+        console.warn(`[AI] Primary model failed (${modelId}):`, error.message);
+      } else {
+        console.warn(`[AI] Fallback model failed (${modelId}):`, error.message);
+      }
+
+      // If this was the last model, throw error
+      if (i === modelsToTry.length - 1) {
+        console.error(`[AI] All ${modelsToTry.length} models failed`);
+
+        // Throw the most relevant error
+        const primaryError = errors[0].error;
+        primaryError.message = `All models failed. Primary error (${errors[0].model}): ${primaryError.message}`;
+        throw primaryError;
+      }
     }
   }
+
+  // This should never be reached, but TypeScript needs it
+  throw new Error("Unexpected error in generateText");
 }
 
 /**
@@ -390,7 +415,7 @@ export async function* streamText(
     });
   } catch (error: any) {
     console.warn(`[AI] Stream failed for ${primaryModelId}, trying fallback`);
-    
+
     const fallbackModelId = getFallbackModel(useCase);
     if (fallbackModelId) {
       const fallbackClient = new AIClient(fallbackModelId);
@@ -454,7 +479,7 @@ export async function generateImage(
  */
 export async function createEmbedding(text: string) {
   const client = new AIClient("gpt-4o"); // Use any OpenAI model config
-  
+
   const response = await client.client.embeddings.create({
     model: "text-embedding-ada-002",
     input: text,
@@ -476,7 +501,7 @@ export async function analyzeData(
 ): Promise<AIGenerateResponse> {
   const systemPrompt =
     "You are a data analyst. Analyze the provided data and answer questions with clear, accurate insights.";
-  
+
   const prompt = `Data:\n${data}\n\nQuestion: ${question}`;
 
   return generateText(prompt, {
@@ -494,7 +519,7 @@ export async function summarize(
   options?: { length?: "short" | "medium" | "long" } & AIGenerateOptions
 ): Promise<AIGenerateResponse> {
   const { length = "medium", ...restOptions } = options || {};
-  
+
   const lengthInstructions = {
     short: "in 2-3 sentences",
     medium: "in 1-2 paragraphs",
@@ -534,7 +559,10 @@ export const ai = {
   generate: (prompt: string, options?: Omit<AIGenerateOptions, "stream">) => {
     return getDefaultAIClient().generate(prompt, options);
   },
-  generateStream: (prompt: string, options?: Omit<AIGenerateOptions, "stream">) => {
+  generateStream: (
+    prompt: string,
+    options?: Omit<AIGenerateOptions, "stream">
+  ) => {
     return getDefaultAIClient().generateStream(prompt, options);
   },
 };
