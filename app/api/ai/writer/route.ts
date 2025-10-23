@@ -3,6 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { generateText, calculateCost } from "@/lib/ai";
 import { prisma } from "@/lib/db";
+import {
+  getUserSubscription,
+  getMonthlyTokenUsage,
+  getRemainingTokens,
+} from "@/lib/subscription";
 import { z } from "zod";
 
 /**
@@ -50,49 +55,15 @@ export async function POST(req: NextRequest) {
       projectId,
     } = validation.data;
 
-    // Check user subscription and usage limits
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: {
-        subscriptions: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-        usageLogs: {
-          where: {
-            createdAt: {
-              gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-            },
-          },
-        },
-      },
-    });
+    // Check user subscription and usage limits using centralized utilities
+    const { limits } = await getUserSubscription(session.user.id);
+    const currentMonthUsage = await getMonthlyTokenUsage(session.user.id);
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const subscription = user.subscriptions[0];
-    const currentMonthUsage = user.usageLogs.reduce(
-      (acc, log) => acc + log.tokens,
-      0
-    );
-
-    // Define usage limits based on plan
-    const usageLimits: Record<string, number> = {
-      free: 1000,
-      starter: 50000,
-      pro: 200000,
-      business: 1000000,
-    };
-
-    const limit = usageLimits[subscription?.plan || "free"];
-
-    if (currentMonthUsage >= limit) {
+    if (currentMonthUsage >= limits.monthlyTokens) {
       return NextResponse.json(
         {
           error: "Usage limit exceeded",
-          message: `You have reached your monthly limit of ${limit} tokens. Please upgrade your plan.`,
+          message: `You have reached your monthly limit of ${limits.monthlyTokens} tokens. Please upgrade your plan.`,
         },
         { status: 429 }
       );
@@ -185,7 +156,8 @@ export async function POST(req: NextRequest) {
       content: result.text,
       usage: result.usage,
       cost,
-      remainingTokens: limit - currentMonthUsage - result.usage.totalTokens,
+      remainingTokens:
+        limits.monthlyTokens - currentMonthUsage - result.usage.totalTokens,
     });
   } catch (error: any) {
     console.error("[AI_WRITER_ERROR]", error);

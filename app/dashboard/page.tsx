@@ -40,162 +40,136 @@ export default async function DashboardPage() {
     user?.usageLogs.reduce((acc, log) => acc + log.cost, 0) || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="border-b bg-white dark:bg-gray-800">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              {session.user?.email}
+    <div className="flex-1 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+      </div>
+      {/* User Info & Subscription */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold mb-2">Account</h3>
+          <p className="text-sm text-muted-foreground mb-1">
+            {user?.name || "No name set"}
+          </p>
+          <p className="text-sm text-muted-foreground">{user?.email}</p>
+        </div>
+
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold mb-2">Subscription</h3>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Plan:</span>
+            <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium capitalize">
+              {subscription?.plan || "Free"}
             </span>
-            <Link
-              href="/dashboard/profile"
-              className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Profile
-            </Link>
-            <a
-              href="/api/auth/signout"
-              className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md text-sm"
-            >
-              Sign Out
-            </a>
           </div>
+          <Link
+            href="/dashboard/subscription"
+            className="text-sm text-primary hover:underline"
+          >
+            Manage subscription →
+          </Link>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* User Info & Subscription */}
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-2">Account</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-              {user?.name || "No name set"}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {user?.email}
-            </p>
-          </div>
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold mb-2">Usage This Month</h3>
+          <p className="text-2xl font-bold mb-1">
+            {currentMonthUsage.toLocaleString()}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Tokens used · ${currentMonthCost.toFixed(4)} cost
+          </p>
+        </div>
+      </div>
 
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-2">Subscription</h3>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                Plan:
-              </span>
-              <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium capitalize">
-                {subscription?.plan || "Free"}
-              </span>
-            </div>
+      {/* AI Tools */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">AI Tools</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-lg border bg-card p-6 shadow-sm">
+            <h3 className="text-xl font-semibold mb-2">AI Writer</h3>
+            <p className="text-muted-foreground mb-4">
+              Generate high-quality content with AI
+            </p>
             <Link
-              href="/dashboard/subscription"
-              className="text-sm text-primary hover:underline"
+              href="/tools/ai-writer"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Manage subscription →
+              Open Tool
             </Link>
           </div>
 
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-2">Usage This Month</h3>
-            <p className="text-2xl font-bold mb-1">
-              {currentMonthUsage.toLocaleString()}
+          <div className="rounded-lg border bg-card p-6 shadow-sm">
+            <h3 className="text-xl font-semibold mb-2">AI Analytics</h3>
+            <p className="text-muted-foreground mb-4">
+              Analyze data and get insights with AI
             </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Tokens used · ${currentMonthCost.toFixed(4)} cost
+            <Link
+              href="/tools/ai-analytics"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Coming Soon
+            </Link>
+          </div>
+
+          <div className="rounded-lg border bg-card p-6 shadow-sm">
+            <h3 className="text-xl font-semibold mb-2">All Tools</h3>
+            <p className="text-muted-foreground mb-4">
+              Browse all available AI tools
             </p>
+            <Link
+              href="/tools"
+              className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              View All
+            </Link>
           </div>
         </div>
+      </div>
 
-        {/* AI Tools */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">AI Tools</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-              <h3 className="text-xl font-semibold mb-2">AI Writer</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Generate high-quality content with AI
-              </p>
-              <Link
-                href="/tools/ai-writer"
-                className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
-              >
-                Open Tool
-              </Link>
-            </div>
-
-            <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-              <h3 className="text-xl font-semibold mb-2">AI Analytics</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Analyze data and get insights with AI
-              </p>
-              <Link
-                href="/tools/ai-analytics"
-                className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
-              >
-                Open Tool
-              </Link>
-            </div>
-
-            <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-              <h3 className="text-xl font-semibold mb-2">All Tools</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Browse all available AI tools
-              </p>
-              <Link
-                href="/tools"
-                className="inline-block px-4 py-2 border rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                View All
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Projects */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4">Recent Projects</h2>
-          {user && user.projects.length > 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Last Updated
-                    </th>
+      {/* Recent Projects */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Recent Projects</h2>
+        {user && user.projects.length > 0 ? (
+          <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead className="border-b bg-muted/50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Last Updated
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {user.projects.map((project) => (
+                  <tr key={project.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {project.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground">
+                      {project.description || "No description"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {new Date(project.updatedAt).toLocaleDateString()}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {user.projects.map((project) => (
-                    <tr key={project.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {project.name}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                        {project.description || "No description"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(project.updatedAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="p-8 bg-white dark:bg-gray-800 rounded-lg shadow text-center">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                No projects yet. Start by using one of the AI tools above!
-              </p>
-            </div>
-          )}
-        </div>
-      </main>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-card p-8 shadow-sm text-center">
+            <p className="text-muted-foreground mb-4">
+              No projects yet. Start by using one of the AI tools above!
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
