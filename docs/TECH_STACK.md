@@ -6,17 +6,17 @@ This document defines the full technology stack used in the **AI Micro-SaaS Plat
 
 ## 📋 Table of Contents
 
-1. [Project Summary](#project-summary)
-2. [Frontend](#frontend)
-3. [Backend](#backend)
-4. [AI Integration](#ai-integration)
-5. [Billing System](#billing-system)
-6. [Database Layer](#database-layer)
-7. [Authentication](#authentication)
-8. [Deployment](#deployment)
-9. [Tooling and Standards](#tooling_and_standards)
-10. [Folder Structure Summary](#folder-structure-summary)
-11. [Copilot and AI Assistant Notes](#copilot_and_ai_assistant_notes)
+1. [Project Summary](#-project-summary)
+2. [Frontend](#-frontend)
+3. [Backend](#-backend)
+4. [AI Integration](#-ai-integration)
+5. [Billing System](#-billing-system)
+6. [Database Layer](#-database-layer)
+7. [Authentication](#-authentication)
+8. [Deployment](#-deployment)
+9. [Tooling and Standards](#-tooling-and-standards)
+10. [Folder Structure Summary](#-folder-structure-summary)
+11. [Copilot and AI Assistant Notes](#-copilot-and-ai-assistant-notes)
 
 ---
 

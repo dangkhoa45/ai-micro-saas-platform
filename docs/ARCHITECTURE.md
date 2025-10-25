@@ -8,7 +8,7 @@ This project is an **AI Micro-SaaS Platform** built with Next.js, TypeScript, Pr
 
 ### High-Level Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Frontend (Next.js App)                    │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐   │
@@ -202,7 +202,7 @@ This project is an **AI Micro-SaaS Platform** built with Next.js, TypeScript, Pr
 
 ### Example 1: User Generates Content with AI Writer
 
-```
+```text
 1. User submits prompt in UI (/app/tools/ai-writer/page.tsx)
    │
    ▼
@@ -236,7 +236,7 @@ This project is an **AI Micro-SaaS Platform** built with Next.js, TypeScript, Pr
 
 ### Example 2: User Subscribes to Pro Plan
 
-```
+```text
 1. User clicks "Upgrade" button in dashboard
    │
    ▼
@@ -373,7 +373,7 @@ This project is an **AI Micro-SaaS Platform** built with Next.js, TypeScript, Pr
 
 ## 📁 Folder Structure Reference
 
-```
+```text
 ai-micro-saas-platform/
 ├── app/                      # Next.js App Router
 │   ├── api/                  # API routes
