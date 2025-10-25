@@ -426,6 +426,82 @@ export async function hasRemainingQuota(
 }
 
 /**
+ * Check usage limit for a user
+ *
+ * @param userId - User ID
+ * @returns Usage check result with allowed flag and details
+ */
+export async function checkUsageLimit(userId: string): Promise<{
+  allowed: boolean;
+  remainingTokens: number;
+  usedTokens: number;
+  limit: number;
+  message?: string;
+}> {
+  try {
+    // Get user with subscription
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { subscriptions: true },
+    });
+
+    if (!user) {
+      return {
+        allowed: false,
+        remainingTokens: 0,
+        usedTokens: 0,
+        limit: 0,
+        message: "User not found",
+      };
+    }
+
+    // Determine monthly token limit based on subscription plan
+    const subscription = user.subscriptions[0];
+    let monthlyLimit = 10000; // Free tier default
+
+    if (subscription) {
+      switch (subscription.plan) {
+        case "starter":
+          monthlyLimit = 100000; // 100K tokens
+          break;
+        case "pro":
+          monthlyLimit = 500000; // 500K tokens
+          break;
+        case "business":
+          monthlyLimit = 2000000; // 2M tokens
+          break;
+        default:
+          monthlyLimit = 10000; // Free tier
+      }
+    }
+
+    const usedTokens = await getMonthlyTokenUsage(userId);
+    const remainingTokens = Math.max(0, monthlyLimit - usedTokens);
+    const allowed = remainingTokens > 0;
+
+    return {
+      allowed,
+      remainingTokens,
+      usedTokens,
+      limit: monthlyLimit,
+      message: allowed
+        ? undefined
+        : "Monthly token limit exceeded. Please upgrade your plan.",
+    };
+  } catch (error) {
+    console.error("[USAGE_LIMIT_CHECK_ERROR]", error);
+    // Allow usage on error to not block users
+    return {
+      allowed: true,
+      remainingTokens: 0,
+      usedTokens: 0,
+      limit: 0,
+      message: "Unable to check usage limit",
+    };
+  }
+}
+
+/**
  * Get usage summary for all users (admin function)
  *
  * @param startDate - Start date

@@ -460,35 +460,79 @@ export async function generateImage(
     n = 1,
   } = options || {};
 
-  // Always use OpenAI for image generation
-  const client = new AIClient("dall-e-3");
+  try {
+    // Create a direct OpenAI client for image generation (not through OpenRouter)
+    const openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      maxRetries: 3,
+      timeout: 60000, // 60 seconds for image generation
+    });
 
-  const response = await client.client.images.generate({
-    model,
-    prompt,
-    size,
-    quality,
-    n,
-  });
+    const response = await openaiClient.images.generate({
+      model,
+      prompt,
+      size: size as any,
+      quality,
+      n,
+    });
 
-  return response.data;
+    return {
+      data: response.data,
+      model,
+      created: response.created,
+    };
+  } catch (error: any) {
+    console.error("[AI] Image generation error:", error);
+    throw new AIError(
+      error.message || "Failed to generate image",
+      "OpenAI",
+      error.status || 500,
+      error
+    );
+  }
 }
 
 /**
  * Create embeddings for text
  */
-export async function createEmbedding(text: string) {
-  const client = new AIClient("gpt-4o"); // Use any OpenAI model config
+export async function createEmbedding(
+  text: string,
+  options?: {
+    model?:
+      | "text-embedding-ada-002"
+      | "text-embedding-3-small"
+      | "text-embedding-3-large";
+  }
+) {
+  const { model = "text-embedding-ada-002" } = options || {};
 
-  const response = await client.client.embeddings.create({
-    model: "text-embedding-ada-002",
-    input: text,
-  });
+  try {
+    // Create a direct OpenAI client for embeddings (not through OpenRouter)
+    const openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      maxRetries: 3,
+      timeout: 30000,
+    });
 
-  return {
-    embedding: response.data[0].embedding,
-    usage: response.usage,
-  };
+    const response = await openaiClient.embeddings.create({
+      model,
+      input: text,
+    });
+
+    return {
+      embedding: response.data[0].embedding,
+      model: response.model,
+      usage: response.usage,
+    };
+  } catch (error: any) {
+    console.error("[AI] Embedding generation error:", error);
+    throw new AIError(
+      error.message || "Failed to create embedding",
+      "OpenAI",
+      error.status || 500,
+      error
+    );
+  }
 }
 
 /**

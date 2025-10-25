@@ -11,7 +11,7 @@ import bcrypt from "bcryptjs";
  * Supports credentials (email/password) and OAuth (Google, GitHub)
  */
 export const authOptions: NextAuthOptions = {
-  // Use adapter for OAuth providers
+  // Use adapter for OAuth providers to save accounts to database
   adapter: PrismaAdapter(prisma) as any,
 
   providers: [
@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
       : (() => {
           if (process.env.NODE_ENV === "development") {
             console.warn(
-              "[auth] Google OAuth disabled: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local"
+              "[auth] Google OAuth disabled: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env"
             );
           }
           return [] as const;
@@ -79,7 +79,7 @@ export const authOptions: NextAuthOptions = {
       : (() => {
           if (process.env.NODE_ENV === "development") {
             console.warn(
-              "[auth] GitHub OAuth disabled: set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in .env.local"
+              "[auth] GitHub OAuth disabled: set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in .env"
             );
           }
           return [] as const;
@@ -87,7 +87,8 @@ export const authOptions: NextAuthOptions = {
   ],
 
   session: {
-    strategy: "database",
+    strategy: "jwt", // JWT required for credentials provider
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 
   pages: {
@@ -99,10 +100,18 @@ export const authOptions: NextAuthOptions = {
   useSecureCookies: process.env.NODE_ENV === "production",
 
   callbacks: {
-    async session({ session, user }) {
-      // With database strategy, user comes from database
-      if (session.user && user) {
-        session.user.id = user.id;
+    async jwt({ token, user }) {
+      // Persist user id to the token
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+
+    async session({ session, token }) {
+      // Send user id from token to client
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
       }
       return session;
     },
