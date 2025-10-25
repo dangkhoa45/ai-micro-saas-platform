@@ -91,6 +91,7 @@ export default function AIWriterEnhancedPage() {
 
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prompt, history, historyIndex]);
 
   const handleGenerate = async () => {
@@ -128,11 +129,13 @@ export default function AIWriterEnhancedPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || "Failed to generate content");
+        throw new Error(
+          data.error || data.message || "Failed to generate content"
+        );
       }
 
       setResult(data);
-      
+
       // Add to history
       setHistory((prev) => [...prev.slice(0, historyIndex + 1), data.content]);
       setHistoryIndex((prev) => prev + 1);
@@ -141,7 +144,9 @@ export default function AIWriterEnhancedPage() {
       setLoading(false);
     } catch (err: any) {
       console.error("Generation error:", err);
-      setError(err.message || "An unexpected error occurred. Please try again.");
+      setError(
+        err.message || "An unexpected error occurred. Please try again."
+      );
       showToast(err.message || "Failed to generate content", "error");
       setLoading(false);
     }
@@ -247,7 +252,10 @@ export default function AIWriterEnhancedPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              ✍️ AI Writer <span className="text-sm font-normal px-2 py-1 bg-primary/10 text-primary rounded">Pro</span>
+              ✍️ AI Writer{" "}
+              <span className="text-sm font-normal px-2 py-1 bg-primary/10 text-primary rounded">
+                Pro
+              </span>
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Advanced AI-powered content generation with personalization
@@ -276,7 +284,9 @@ export default function AIWriterEnhancedPage() {
           <motion.div
             initial={{ x: -100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            className={`lg:col-span-3 ${settingsCollapsed ? "hidden lg:block" : ""}`}
+            className={`lg:col-span-3 ${
+              settingsCollapsed ? "hidden lg:block" : ""
+            }`}
           >
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sticky top-24">
               <div className="flex items-center justify-between mb-4">
@@ -440,8 +450,9 @@ export default function AIWriterEnhancedPage() {
               />
               <div className="flex items-center justify-between mt-2">
                 <div className="text-xs text-gray-500">
-                  <span className="font-medium">{wordCount}</span> words • 
-                  <span className="font-medium ml-1">{charCount}</span> characters
+                  <span className="font-medium">{wordCount}</span> words •
+                  <span className="font-medium ml-1">{charCount}</span>{" "}
+                  characters
                 </div>
                 <button
                   onClick={handleGenerate}
@@ -562,34 +573,46 @@ export default function AIWriterEnhancedPage() {
                     </div>
 
                     <div className="pt-6 border-t">
-                      <h3 className="text-sm font-semibold mb-3">📊 Usage Statistics</h3>
+                      <h3 className="text-sm font-semibold mb-3">
+                        📊 Usage Statistics
+                      </h3>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                         <div className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg">
-                          <p className="text-xs text-gray-600 dark:text-gray-400">Tokens Used</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Tokens Used
+                          </p>
                           <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                             {result.usage.totalTokens.toLocaleString()}
                           </p>
                         </div>
                         <div className="p-3 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg">
-                          <p className="text-xs text-gray-600 dark:text-gray-400">Cost</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Cost
+                          </p>
                           <p className="text-lg font-bold text-green-600 dark:text-green-400">
                             ${result.cost.toFixed(4)}
                           </p>
                         </div>
                         <div className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg">
-                          <p className="text-xs text-gray-600 dark:text-gray-400">Remaining</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Remaining
+                          </p>
                           <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
                             {result.remainingTokens.toLocaleString()}
                           </p>
                         </div>
                         <div className="p-3 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg">
-                          <p className="text-xs text-gray-600 dark:text-gray-400">Words</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Words
+                          </p>
                           <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
                             {result.content.split(/\s+/).length}
                           </p>
                         </div>
                         <div className="p-3 bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20 rounded-lg">
-                          <p className="text-xs text-gray-600 dark:text-gray-400">Characters</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Characters
+                          </p>
                           <p className="text-lg font-bold text-pink-600 dark:text-pink-400">
                             {result.content.length}
                           </p>
@@ -612,7 +635,8 @@ export default function AIWriterEnhancedPage() {
                       Ready to create amazing content?
                     </p>
                     <p className="text-sm text-gray-500">
-                      Enter your prompt above and click Generate Content to start
+                      Enter your prompt above and click Generate Content to
+                      start
                     </p>
                   </motion.div>
                 )}
@@ -687,7 +711,9 @@ export default function AIWriterEnhancedPage() {
                       <div className="flex items-start gap-3">
                         <span className="text-3xl">{template.icon}</span>
                         <div className="flex-1">
-                          <h3 className="font-semibold mb-1">{template.name}</h3>
+                          <h3 className="font-semibold mb-1">
+                            {template.name}
+                          </h3>
                           <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
                             {template.description}
                           </p>
