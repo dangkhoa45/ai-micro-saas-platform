@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import crypto from "crypto";
+import { sendEmail, generateVerificationEmail } from "@/lib/email";
 
 /**
  * Register schema validation
@@ -80,9 +82,40 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationExpiry = new Date(Date.now() + 86400000); // 24 hours from now
+
+    // Save verification token to database
+    await prisma.verificationToken.create({
+      data: {
+        identifier: email,
+        token: verificationToken,
+        expires: verificationExpiry,
+      },
+    });
+
+    // Generate verification URL
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const verificationUrl = `${baseUrl}/api/auth/verify-email?token=${verificationToken}`;
+
+    // Send verification email
+    try {
+      await sendEmail({
+        to: email,
+        subject: "Verify Your Email Address",
+        html: generateVerificationEmail(verificationUrl),
+      });
+    } catch (emailError) {
+      console.error("[REGISTER_EMAIL_ERROR]", emailError);
+      // Don't fail registration if email fails
+      // User can request new verification email later
+    }
+
     return NextResponse.json(
       {
-        message: "User registered successfully",
+        message:
+          "User registered successfully. Please check your email to verify your account.",
         user,
       },
       { status: 201 }
