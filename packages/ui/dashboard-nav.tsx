@@ -12,6 +12,8 @@ import {
   Menu,
   LogOut,
   Sparkles,
+  Image as ImageIcon,
+  Layers,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/ui/sheet";
 import { Button } from "@/ui/button";
@@ -38,6 +40,16 @@ const navItems: NavItem[] = [
     title: "AI Writer",
     href: "/tools/ai-writer",
     icon: Sparkles,
+  },
+  {
+    title: "AI Image Generator",
+    href: "/tools/ai-image-generator",
+    icon: ImageIcon,
+  },
+  {
+    title: "AI Embeddings",
+    href: "/tools/ai-embeddings",
+    icon: Layers,
   },
   {
     title: "Subscription",

@@ -24,6 +24,12 @@ const nextConfig = {
   // Image optimization
   images: {
     domains: ["localhost"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "oaidalleapiprodscus.blob.core.windows.net",
+      },
+    ],
   },
 };
 

@@ -46,12 +46,28 @@ export async function POST(req: NextRequest) {
         enabled: true,
       },
       {
+        slug: "ai-image-generator",
+        name: "AI Image Generator",
+        description:
+          "Generate stunning images from text descriptions using DALL-E",
+        icon: "🎨",
+        enabled: true,
+      },
+      {
+        slug: "ai-embeddings",
+        name: "AI Embeddings",
+        description:
+          "Generate vector embeddings for semantic search and text similarity",
+        icon: "🧬",
+        enabled: true,
+      },
+      {
         slug: "ai-analytics",
         name: "AI Analytics",
         description:
           "Analyze data and get insights with AI - charts, predictions, and recommendations",
-        icon: "📊",
-        enabled: true,
+        icon: "�",
+        enabled: false,
       },
       {
         slug: "ai-chatbot",
@@ -59,14 +75,6 @@ export async function POST(req: NextRequest) {
         description:
           "Create and deploy intelligent chatbots for customer service and engagement",
         icon: "💬",
-        enabled: false,
-      },
-      {
-        slug: "ai-image-gen",
-        name: "AI Image Generator",
-        description:
-          "Generate stunning images from text descriptions using DALL-E",
-        icon: "🎨",
         enabled: false,
       },
     ];

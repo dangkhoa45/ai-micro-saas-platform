@@ -105,6 +105,15 @@ export default function SignInPage() {
             />
           </div>
 
+          <div className="flex items-center justify-end">
+            <a
+              href="/auth/forgot-password"
+              className="text-sm text-primary hover:underline"
+            >
+              Forgot password?
+            </a>
+          </div>
+
           {error && (
             <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
               {error}
